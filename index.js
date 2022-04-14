@@ -1,37 +1,75 @@
 const DisTube = require("distube");
+const { SpotifyPlugin } = require("@distube/spotify");
+const { SoundCloudPlugin } = require("@distube/soundcloud");
+const { YtDlpPlugin } = require("@distube/yt-dlp");
+const filters = require("./")
 const Discord = require("discord.js");
-const client = new Discord.Client()
 const fs = require("fs");
 const config = require("./config.json");
+const client = new Discord.Client({
+    allowedMentions: { parse: ['users', 'roles'], repliedUser: true },
+    failIfNotExists: false,
+    partials: ['MESSAGE', 'CHANNEL', 'REACTION', 'GUILD_MEMBER', 'USER'],
+    intents: [
+        Discord.Intents.FLAGS.GUILDS,
+        Discord.Intents.FLAGS.GUILD_INTEGRATIONS,
+        Discord.Intents.FLAGS.GUILD_VOICE_STATES,
+        Discord.Intents.FLAGS.GUILD_MESSAGES,
+    ],
+    presence: {
+        activities: [{
+          name: `${config.status.text}`.replace("{prefix}", config.prefix), 
+          type: config.status.type, url: config.status.url
+        }],
+        status: config.status.presence,
+    }
+});
 
-client.config = require("./config.json")
+client.config = config;
+let spotifyoptions = {
+    parallel: true,
+    emitEventsAfterFetching: true,
+  }
+  spotifyoptions.api = {
+    clientId: config.spotify.clientID,
+    clientSecret: config.spotify.clientSecret,
+  }
 client.distube = new DisTube(client, {
-searchSongs: false,
-emitNewSongOnly: false,
-leaveOnFinish: false,
-youtubeCookie : config.cookie,
-highWaterMark: 1024 * 1024 * 64,
-leaveOnEmpty: false,
-leaveOnStop: false,
-youtubeDL: true,
-updateYouTubeDL: true,
-customFilters: config.filters
-})
-client.commands = new Discord.Collection()
-client.aliases = new Discord.Collection()
-client.emotes = config.emoji
+    emitNewSongOnly: false,
+    leaveOnEmpty: true,
+    leaveOnFinish: true,
+    leaveOnStop: true,
+    savePreviousSongs: true,
+    emitAddSongWhenCreatingQueue: false,
+    //emitAddListWhenCreatingQueue: false,
+    searchSongs: 0,
+    youtubeCookie: config.cookie, 
+    nsfw: true, //Set it to false if u want to disable nsfw songs
+    emptyCooldown: 25,
+    ytdlOptions: {
+      highWaterMark: 1024 * 1024 * 64,
+      quality: "highestaudio",
+      format: "audioonly",
+      liveBuffer: 60000,
+      dlChunkSize: 1024 * 1024 * 4,
+    },
+    youtubeDL: false,
+    updateYouTubeDL: true,
+    customFilters: filters,
+    plugins: [
+      new SpotifyPlugin(spotifyoptions),
+      new SoundCloudPlugin(),
+      new YtDlpPlugin()
+    ]
+  })
+client.commands = new Discord.Collection();
+client.aliases = new Discord.Collection();
+client.emotes = require("../assests/emojis.json");
 
-fs.readdir("./commands/", (err, files) => {
-    if (err) return console.log("Could not find any commands!")
-    const jsFiles = files.filter(f => f.split(".").pop() === "js")
-    if (jsFiles.length <= 0) return console.log("Could not find any commands!")
-    jsFiles.forEach(file => {
-        const cmd = require(`./commands/${file}`)
-        console.log(`Loaded ${file}`)
-        client.commands.set(cmd.name, cmd)
-        if (cmd.aliases) cmd.aliases.forEach(alias => client.aliases.set(alias, cmd.name))
-    })
-})
+["command", "events"].forEach(handler => {
+    require(`./handlers/${handler}`)(client);
+});
+
 
 client.on("ready", () => {
     console.log(`${client.user.tag} is ready to play music.`)
@@ -39,7 +77,7 @@ client.on("ready", () => {
     client.user.setActivity({ type: "PLAYING", name: `Music on ${server} servers` })
 })
 
-client.on("message", async message => {
+client.on("messageCreate", async message => {
     const prefix = config.prefix
     if (!message.content.startsWith(prefix)) return
     const args = message.content.slice(prefix.length).trim().split(/ +/g)
