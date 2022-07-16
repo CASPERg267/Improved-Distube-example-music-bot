@@ -1,3 +1,5 @@
 # Improved-Distube-example-music-bot
-improved DisTube example music bot.
-I don't have enough time to wrtie a unique readme file maybe i ll let my friend laka edit it later :P
+
+This repo will be updated with a breaking changes since the code is outdated, use it at your own risks
+
+**(ANY ISSUE WILL BE CLOSED, PULL REQUESTS WON'T BE MERGED UNTILL REWRITTING IS FINISHED)**
